@@ -1,157 +1,63 @@
 const express = require('express');
-const path = require('path');
+const cors = require('cors');
 const bodyParser = require('body-parser');
 const { nanoid } = require('nanoid');
+const path = require('path');
 
+// Create Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory storage for URLs (temporary solution)
+// Database to store URLs (in a real app, use a proper database)
 const urlDatabase = {};
 
 // Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(cors({
+  origin: ['http://breif.site', 'https://breif.site', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Set EJS as templating engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Routes
-app.get('/', (req, res) => {
-  console.log('Rendering home page');
-  res.render('index');
-});
-
-app.post('/shorten', async (req, res) => {
+// API endpoint to shorten URL
+app.post('/api/shorten', (req, res) => {
   try {
-    console.log('Request body:', req.body);
-    let { url } = req.body;
-
-    // Basic URL validation
+    const { url } = req.body;
+    
     if (!url) {
-      console.log('No URL provided');
-      // Check if this is an API request or a form submission
-      const wantsJson = req.headers['content-type'] === 'application/json';
-      
-      if (wantsJson) {
-        return res.status(400).json({ error: 'Please provide a URL' });
-      } else {
-        return res.render('index', { error: 'Please provide a URL' });
-      }
+      return res.status(400).json({ error: 'URL is required' });
     }
-
-    // Add protocol if missing
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-
-    // Generate short ID
-    const shortId = nanoid(6);
     
-    // Store in memory
-    urlDatabase[shortId] = {
-      originalUrl: url,
-      clicks: 0,
-      createdAt: new Date()
-    };
-
-    console.log('Created short URL:', shortId, 'for', url);
-
-    // Construct the short URL
-    const shortUrl = `${req.protocol}://${req.get('host')}/${shortId}`;
+    // Generate a short code
+    const shortCode = nanoid(6); // 6 character code
     
-    // Check if this is an API request or a form submission
-    const wantsJson = req.headers['content-type'] === 'application/json';
+    // Store in our database
+    urlDatabase[shortCode] = url;
     
-    if (wantsJson) {
-      return res.json({ shortUrl });
-    } else {
-      return res.render('index', { shortUrl });
-    }
+    console.log(`Created short URL: ${shortCode} for ${url}`);
+    
+    // Return the shortened URL
+    return res.json({ shortUrl: shortCode });
   } catch (error) {
     console.error('Error shortening URL:', error);
-    
-    // Check if this is an API request or a form submission
-    const wantsJson = req.headers['content-type'] === 'application/json';
-    
-    if (wantsJson) {
-      return res.status(500).json({ error: 'Server error. Please try again.' });
-    } else {
-      return res.render('index', { error: 'Server error. Please try again.' });
-    }
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// API endpoint for JSON requests
-app.post('/api/shorten', async (req, res) => {
-  try {
-    console.log('API Request body:', req.body);
-    let { url } = req.body;
-
-    // Basic URL validation
-    if (!url) {
-      console.log('No URL provided');
-      return res.status(400).json({ error: 'Please provide a URL' });
-    }
-
-    // Add protocol if missing
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-
-    // Generate short ID
-    const shortId = nanoid(6);
-    
-    // Store in memory
-    urlDatabase[shortId] = {
-      originalUrl: url,
-      clicks: 0,
-      createdAt: new Date()
-    };
-
-    console.log('Created short URL:', shortId, 'for', url);
-
-    // Construct the short URL
-    const shortUrl = `${req.protocol}://${req.get('host')}/${shortId}`;
-    
-    return res.json({ shortUrl });
-  } catch (error) {
-    console.error('Error shortening URL:', error);
-    return res.status(500).json({ error: 'Server error. Please try again.' });
+// Redirect endpoint
+app.get('/:shortCode', (req, res) => {
+  const { shortCode } = req.params;
+  const originalUrl = urlDatabase[shortCode];
+  
+  if (originalUrl) {
+    return res.redirect(originalUrl);
+  } else {
+    return res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
   }
-});
-
-// Redirect route
-app.get('/:shortId', (req, res) => {
-  try {
-    const { shortId } = req.params;
-    const urlData = urlDatabase[shortId];
-
-    if (!urlData) {
-      console.log('URL not found:', shortId);
-      return res.status(404).render('index', { error: 'URL not found' });
-    }
-
-    // Increment clicks
-    urlData.clicks += 1;
-    
-    console.log('Redirecting to:', urlData.originalUrl);
-    res.redirect(urlData.originalUrl);
-  } catch (error) {
-    console.error('Error redirecting:', error);
-    res.render('index', { error: 'Server error' });
-  }
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).render('index', { error: 'Server error. Please try again.' });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});

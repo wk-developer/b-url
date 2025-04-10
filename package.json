@@ -11,12 +11,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "nanoid": "^3.3.6",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
     "ejs": "^3.1.9",
-    "body-parser": "^1.20.2"
+    "express": "^4.21.2",
+    "nanoid": "^3.3.11"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wk-developer/breif.site.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wk-developer/breif.site/issues"
+  },
+  "homepage": "https://github.com/wk-developer/breif.site#readme"
 }

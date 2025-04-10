@@ -614,6 +614,7 @@
   <!-- Link to frontend script -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 
+  <!-- In your script section, update the API URL -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const urlInput = document.querySelector('.url-input');
@@ -646,12 +647,17 @@
           // Add logging to debug the request
           console.log('Sending URL:', urlToShorten);
           
-          const response = await fetch('/api/shorten', {
+          // Use relative URL to avoid CORS issues
+          const apiUrl = '/api/shorten';
+          
+          console.log('Using API endpoint:', apiUrl);
+          
+          const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url: urlToShorten }),
+            body: JSON.stringify({ url: urlToShorten })
           });
 
           // Log the response for debugging
@@ -661,7 +667,15 @@
             const data = await response.json();
             console.log('Response data:', data);
             
-            const shortUrl = data.shortUrl;
+            // Use your specific domain for the shortened URL
+            let shortUrl = data.shortUrl;
+            
+            // If the shortUrl is just a path/code (not a full URL)
+            if (!shortUrl.startsWith('http://') && !shortUrl.startsWith('https://')) {
+              // Use your custom domain with HTTPS
+              shortUrl = `https://breif.site/${shortUrl}`;
+            }
+            
             shortUrlSpan.textContent = shortUrl;
             
             // Generate QR code
@@ -669,9 +683,20 @@
             
             resultContainer.classList.add('active');
           } else {
-            const errorData = await response.json();
-            console.error('Error response:', errorData);
-            alert('Error shortening URL: ' + (errorData.error || 'Unknown error'));
+            // Handle different error status codes
+            if (response.status === 404) {
+              alert('API endpoint not found. Please check server configuration.');
+            } else {
+              try {
+                const errorData = await response.json();
+                console.error('Error response:', errorData);
+                alert('Error shortening URL: ' + (errorData.error || 'Unknown error'));
+              } catch (jsonError) {
+                // If the response is not JSON
+                console.error('Non-JSON error response');
+                alert('Error shortening URL: Server returned an invalid response');
+              }
+            }
           }
         } catch (error) {
           alert('Error shortening URL. Please try again.');
